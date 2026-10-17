@@ -39,7 +39,7 @@ jobs:
         run: npm run check:js
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        run: node node_modules/playwright/cli.js install --with-deps chromium
 
       - name: Run Playwright UI tests
         run: npm run test:e2e
