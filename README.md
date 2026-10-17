@@ -58,7 +58,7 @@ Success response:
 }
 ```
 
-Invalid or empty input returns HTTP 400. Missing configuration or upstream AI errors return HTTP 502 with an `error` field.
+Invalid or empty input returns HTTP 400. Missing configuration or upstream AI errors return HTTP 502 with an `error` field. Every `/chat` response includes an `X-Request-ID` response header; the same ID is included in the JSON body to correlate client reports with server logs.
 
 ## Continuous integration
 

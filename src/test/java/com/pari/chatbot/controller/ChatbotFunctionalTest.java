@@ -23,6 +23,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -68,6 +69,7 @@ class ChatbotFunctionalTest {
         mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Hello from the assistant"))
+                .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$.requestId").isNotEmpty());
 
         verify(chatGPTService).getGPTResponse(
@@ -87,6 +89,7 @@ class ChatbotFunctionalTest {
         mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Message content must not be empty."))
+                .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$.requestId").isNotEmpty());
 
         verify(chatGPTService, never()).getGPTResponse(
@@ -215,6 +218,7 @@ class ChatbotFunctionalTest {
         mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Option two is the best fit."))
+                .andExpect(header().exists("X-Request-ID"))
                 .andExpect(jsonPath("$.requestId").isNotEmpty());
 
         org.mockito.ArgumentCaptor<List<ChatMessage.HistoryMessage>> historyCaptor =
