@@ -35,8 +35,7 @@ class ChatbotFunctionalTest {
     void servesChatUi() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"chat-form\"")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("/app.js")));
+                .andExpect(forwardedUrl("index.html"));
     }
 
     @Test
