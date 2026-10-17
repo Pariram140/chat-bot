@@ -5,7 +5,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("renders the chat UI and prompt suggestions", async ({ page }) => {
-  await expect(page.getByRole("heading", { name: "What can I help with?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New chat" })).toBeVisible();
   await expect(page.getByLabel("Your message")).toBeVisible();
   await expect(page.getByRole("button", { name: "Explain a technical concept" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Brainstorm an idea" })).toBeVisible();
