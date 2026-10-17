@@ -2,6 +2,7 @@ package com.pari.chatbot.controller;
 
 import com.pari.chatbot.model.ChatMessage;
 import com.pari.chatbot.service.ChatGPTService;
+import com.pari.chatbot.service.ChatMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -25,9 +26,11 @@ public class ChatbotController {
     private static final int MAX_MEMORY_LENGTH = 500;
 
     private final ChatGPTService chatGPTService;
+    private final ChatMetrics chatMetrics;
 
-    public ChatbotController(ChatGPTService chatGPTService) {
+    public ChatbotController(ChatGPTService chatGPTService, ChatMetrics chatMetrics) {
         this.chatGPTService = chatGPTService;
+        this.chatMetrics = chatMetrics;
     }
 
     @PostMapping("/chat")
@@ -86,11 +89,13 @@ public class ChatbotController {
         long startedAt = System.nanoTime();
         return chatGPTService.getGPTResponse(content, history, memories, requestId)
                 .map(answer -> {
+                    chatMetrics.recordChatOutcome("success");
                     log.info("event=chat_completed requestId={} durationMs={} responseChars={}",
                             requestId, (System.nanoTime() - startedAt) / 1_000_000, answer.length());
                     return ResponseEntity.ok(Map.of("response", answer, "requestId", requestId));
                 })
                 .onErrorResume(error -> {
+                    chatMetrics.recordChatOutcome("failure");
                     log.error("event=chat_failed requestId={} durationMs={} errorCategory=ai_service_failure errorType={}",
                             requestId, (System.nanoTime() - startedAt) / 1_000_000, error.getClass().getSimpleName());
                     String messageText = error instanceof IllegalStateException
