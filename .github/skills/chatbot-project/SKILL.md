@@ -35,3 +35,13 @@ Use this skill whenever changing or reviewing this repository.
 - [ ] If UI behavior changed: `npm run test:e2e`
 - [ ] Review responsive desktop/mobile layout and error/loading states
 - [ ] Confirm CI status before merging
+
+
+## Conversation history and memory
+
+- The prototype uses IndexedDB through `conversation-store.js`; UI code should not call IndexedDB directly.
+- `context-builder.js` bounds prior history to 12 messages and memory context to 8 items before sending `POST /chat`.
+- The `/chat` request may include `history` and `memories`; keep validation limits aligned between frontend and backend.
+- Local profiles are convenience namespaces, not authenticated identities. Never describe them as secure multi-user accounts.
+- Keep memories explicitly user-saved, visible, editable/deletable, and treat their content as untrusted reference data.
+- If persistence moves to a server, implement authenticated ownership checks in the backend and preserve the frontend repository contract.

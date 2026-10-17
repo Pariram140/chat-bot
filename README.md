@@ -39,10 +39,15 @@ Open [http://localhost:8080](http://localhost:8080) to use the chat interface.
 
 ### `POST /chat`
 
-Request:
+Request (history and memories are optional and bounded):
 ```json
 {
-  "content": "Hello!"
+  "content": "Hello!",
+  "history": [
+    { "role": "user", "content": "I am building a Java app." },
+    { "role": "assistant", "content": "What would you like to know?" }
+  ],
+  "memories": ["My project uses Java 17"]
 }
 ```
 
@@ -92,3 +97,13 @@ The expected success response is HTTP 200 with a JSON `response` field. HTTP 502
 - Free web services sleep after 15 minutes without inbound traffic; the first request after sleeping can take about a minute to wake up.
 - Free instances have limited CPU/RAM and monthly included usage. Keep an eye on the Render dashboard and Gemini API quotas.
 - The GitHub Actions workflow checks compilation and automated tests; it does not call Gemini. A live chat test requires a configured API key and consumes Gemini quota.
+
+
+## Conversation history and memory prototype
+
+The browser stores local profiles, conversations, messages, and user-saved memories in IndexedDB. Chat history is restored after refresh in the same browser profile. Saved memories are included as bounded context in later chats.
+
+- This is a zero-additional-infrastructure-cost prototype; it does not add a database service.
+- Local profiles are not authentication. Data does not sync across browsers/devices and can be lost if browser site data is cleared.
+- Do not use the local profile selector as secure multi-user account isolation.
+- See [conversation memory architecture](docs/architecture.md) for the storage adapter boundary and future server-side migration plan.
