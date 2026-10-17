@@ -158,3 +158,37 @@ class ChatbotFunctionalTest {
     }
 
 }
+
+    @Test
+    void forwardsConversationHistoryAndMemoriesToAiService() throws Exception {
+        when(chatGPTService.getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Pick one"),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(Mono.just("Option two is the best fit."));
+
+        MvcResult result = mockMvc.perform(post("/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\\"content\\":\\"Pick one\\","
+                                + "\\"history\\":["
+                                + "{\\"role\\":\\"user\\",\\"content\\":\\"Brainstorm a project\\"},"
+                                + "{\\"role\\":\\"assistant\\",\\"content\\":\\"Option one; Option two; Option three\\"}],"
+                                + "\\"memories\\":[\\"Use Java 17\\"]}"))
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Option two is the best fit."))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
+
+        org.mockito.ArgumentCaptor<java.util.List<ChatMessage.HistoryMessage>> historyCaptor =
+                org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+        org.mockito.ArgumentCaptor<java.util.List<String>> memoriesCaptor =
+                org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+        verify(chatGPTService).getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Pick one"), historyCaptor.capture(), memoriesCaptor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(2, historyCaptor.getValue().size());
+        org.junit.jupiter.api.Assertions.assertEquals("Brainstorm a project", historyCaptor.getValue().get(0).getContent());
+        org.junit.jupiter.api.Assertions.assertEquals("Option one; Option two; Option three", historyCaptor.getValue().get(1).getContent());
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("Use Java 17"), memoriesCaptor.getValue());
+    }
