@@ -2,6 +2,7 @@ const { test, expect } = require("@playwright/test");
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
+  await expect(page.locator("body")).toHaveAttribute("data-ready", "true");
 });
 
 test("renders the chat UI and prompt suggestions", async ({ page }) => {
