@@ -22,16 +22,19 @@ public class ChatGPTService {
     private final WebClient webClient;
     private final String apiKey;
     private final String model;
+    private final ChatMetrics chatMetrics;
 
     public ChatGPTService(
             WebClient.Builder webClientBuilder,
             @Value("${gemini.api.key:}") String apiKey,
-            @Value("${gemini.api.model:gemini-2.5-flash-lite}") String model) {
+            @Value("${gemini.api.model:gemini-2.5-flash-lite}") String model,
+            ChatMetrics chatMetrics) {
         this.webClient = webClientBuilder
                 .baseUrl("https://generativelanguage.googleapis.com")
                 .build();
         this.apiKey = apiKey;
         this.model = model;
+        this.chatMetrics = chatMetrics;
     }
 
     public Mono<String> getGPTResponse(String userInput) {
@@ -88,9 +91,12 @@ public class ChatGPTService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .map(this::extractText)
-                .doOnSuccess(answer -> log.info("event=gemini_request_completed requestId={} model={} durationMs={} responseChars={}",
+                .doOnSuccess(answer -> {
+                    chatMetrics.recordGeminiOutcome("success", "none");
+                    log.info("event=gemini_request_completed requestId={} model={} durationMs={} responseChars={}",
                         requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
-                        answer == null ? 0 : answer.length()))
+                        answer == null ? 0 : answer.length());
+                })
                 .doOnError(error -> logProviderFailure(requestId, startedAt, error));
     }
 
@@ -98,6 +104,7 @@ public class ChatGPTService {
         long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
         if (error instanceof WebClientResponseException responseError) {
             int status = responseError.getStatusCode().value();
+            chatMetrics.recordGeminiOutcome("failure", classifyStatus(status));
             log.error("event=gemini_request_failed requestId={} model={} durationMs={} providerStatus={} errorCategory={} errorType={}",
                     requestId, model, durationMs, status, classifyStatus(status), error.getClass().getSimpleName());
             return;
@@ -106,6 +113,7 @@ public class ChatGPTService {
         String category = error instanceof WebClientRequestException
                 ? "provider_connection_error"
                 : "provider_response_processing_error";
+        chatMetrics.recordGeminiOutcome("failure", category);
         log.error("event=gemini_request_failed requestId={} model={} durationMs={} errorCategory={} errorType={}",
                 requestId, model, durationMs, category, error.getClass().getSimpleName());
     }
