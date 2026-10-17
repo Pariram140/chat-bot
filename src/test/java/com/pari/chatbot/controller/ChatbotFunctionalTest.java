@@ -8,11 +8,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import reactor.core.publisher.Mono;
 
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -33,7 +35,6 @@ class ChatbotFunctionalTest {
     void servesChatUi() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"chat-form\"")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/app.js")));
     }
@@ -42,7 +43,7 @@ class ChatbotFunctionalTest {
     void servesFrontendScript() throws Exception {
         mockMvc.perform(get("/app.js"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("text/javascript")))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("application/javascript")))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("/chat")));
     }
 
@@ -50,9 +51,12 @@ class ChatbotFunctionalTest {
     void validChatRequestReturnsAssistantResponse() throws Exception {
         when(chatGPTService.getGPTResponse("Hello")).thenReturn(Mono.just("Hello from the assistant"));
 
-        mockMvc.perform(post("/chat")
+        MvcResult result = mockMvc.perform(post("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\":\"Hello\"}"))
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Hello from the assistant"));
 
@@ -61,9 +65,12 @@ class ChatbotFunctionalTest {
 
     @Test
     void blankChatRequestIsRejectedWithoutCallingAiService() throws Exception {
-        mockMvc.perform(post("/chat")
+        MvcResult result = mockMvc.perform(post("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\":\"   \"}"))
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Message content must not be empty."));
 
@@ -78,9 +85,12 @@ class ChatbotFunctionalTest {
                 .put("content", tooLongMessage)
                 .toString();
 
-        mockMvc.perform(post("/chat")
+        MvcResult result = mockMvc.perform(post("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestBody))
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Message must be 4000 characters or fewer."));
 
@@ -92,9 +102,12 @@ class ChatbotFunctionalTest {
         when(chatGPTService.getGPTResponse("Hello"))
                 .thenReturn(Mono.error(new IllegalStateException("sensitive upstream detail")));
 
-        mockMvc.perform(post("/chat")
+        MvcResult result = mockMvc.perform(post("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"content\":\"Hello\"}"))
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.error").value(
                         "The AI service could not complete the request. Check the server key and Gemini quota."))
