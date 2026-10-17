@@ -2,6 +2,13 @@
 
 A Spring Boot chatbot with a static web UI and the Gemini Developer API.
 
+## Project references
+
+- **[Architecture overview](docs/architecture.md)** — components, request flow, deployment, and current limitations.
+- **[Figma UI design](https://www.figma.com/design/pfIAnz6ffMbZtdpjxyBtPY)** — editable desktop and mobile chatbot layouts.
+- **[Chatbot project skill](.github/skills/chatbot-project/SKILL.md)** — repository-specific instructions for future development and verification.
+- **[Design screenshot](docs/assets/figma-design-reference.md)** — screenshot reference and capture notes.
+
 ## Prerequisites
 
 - Java 17
@@ -50,7 +57,7 @@ Invalid or empty input returns HTTP 400. Missing configuration or upstream AI er
 
 ## Continuous integration
 
-GitHub Actions runs `mvn --batch-mode --no-transfer-progress verify` on pull requests targeting `main` and pushes to `main`. This builds the application and runs automated tests. The build does not need a Gemini API key because it does not make live Gemini requests.
+GitHub Actions runs `mvn --batch-mode --no-transfer-progress verify` on pull requests targeting `main` and pushes to `main`. The repository also includes a Playwright UI suite. UI tests mock the chat endpoint, so they do not need a Gemini API key.
 
 ## Free-tier notes
 
