@@ -5,7 +5,7 @@ A Spring Boot chatbot with a static web UI and the Gemini Developer API.
 ## Prerequisites
 
 - Java 17
-- Maven (or the included Maven wrapper, if present)
+- Maven 3.8+ (the repository does not currently include the Maven wrapper)
 - A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
 
 ## Configure and run
@@ -15,13 +15,13 @@ Set the API key as an environment variable. Do not commit API keys to source con
 macOS/Linux:
 ```sh
 export GEMINI_API_KEY="your_gemini_api_key"
-./mvnw spring-boot:run
+mvn spring-boot:run
 ```
 
 Windows PowerShell:
 ```powershell
 $env:GEMINI_API_KEY = "your_gemini_api_key"
-.mvnw.cmd spring-boot:run
+mvn spring-boot:run
 ```
 
 The default model is `gemini-2.5-flash-lite`. To override it, set `GEMINI_MODEL` to a model available to your Gemini API project.
@@ -47,6 +47,10 @@ Success response:
 ```
 
 Invalid or empty input returns HTTP 400. Missing configuration or upstream AI errors return HTTP 502 with an `error` field.
+
+## Continuous integration
+
+GitHub Actions runs `mvn --batch-mode --no-transfer-progress verify` on pull requests targeting `main` and pushes to `main`. This builds the application and runs automated tests. The build does not need a Gemini API key because it does not make live Gemini requests.
 
 ## Free-tier notes
 
