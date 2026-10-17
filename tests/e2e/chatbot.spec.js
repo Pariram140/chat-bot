@@ -71,3 +71,38 @@ test("composer is usable on a mobile viewport", async ({ page }) => {
   await expect(page.getByLabel("Your message")).toBeVisible();
   await expect(page.getByRole("button", { name: "Send message" })).toBeVisible();
 });
+
+
+test("conversation history survives a browser reload", async ({ page }) => {
+  await page.route("**/chat", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ response: "Saved assistant answer" })
+  }));
+  await page.getByLabel("Your message").fill("Remember this conversation");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("Saved assistant answer")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Remember this conversation")).toBeVisible();
+  await expect(page.getByText("Saved assistant answer")).toBeVisible();
+});
+
+test("saved memory is included in a new chat request", async ({ page }) => {
+  await page.getByLabel("Memory to remember across chats").fill("My project uses Java 17");
+  await page.getByRole("button", { name: "Save memory" }).click();
+  await expect(page.getByText("My project uses Java 17")).toBeVisible();
+
+  await page.route("**/chat", async route => {
+    const body = route.request().postDataJSON();
+    expect(body.memories).toContain("My project uses Java 17");
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ response: "I will use that project context." })
+    });
+  });
+  await page.getByRole("button", { name: /New chat/ }).click();
+  await page.getByLabel("Your message").fill("What Java version does my project use?");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("I will use that project context.")).toBeVisible();
+});
