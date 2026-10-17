@@ -303,6 +303,8 @@ async function initialize() {
   } catch (error) {
     setStatus(`Local storage is unavailable: ${error.message}`);
     sendButton.disabled = true;
+  } finally {
+    document.body.dataset.ready = "true";
   }
 }
 
