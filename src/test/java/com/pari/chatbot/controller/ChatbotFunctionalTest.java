@@ -1,5 +1,6 @@
 package com.pari.chatbot.controller;
 
+import com.pari.chatbot.model.ChatMessage;
 import com.pari.chatbot.service.ChatGPTService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
