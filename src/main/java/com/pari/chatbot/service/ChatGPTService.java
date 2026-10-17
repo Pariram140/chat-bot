@@ -2,9 +2,12 @@ package com.pari.chatbot.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pari.chatbot.model.ChatMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
@@ -14,6 +17,7 @@ import java.util.Map;
 @Service
 public class ChatGPTService {
 
+    private static final Logger log = LoggerFactory.getLogger(ChatGPTService.class);
     private final WebClient webClient;
     private final String apiKey;
     private final String model;
@@ -37,7 +41,16 @@ public class ChatGPTService {
             String userInput,
             List<ChatMessage.HistoryMessage> history,
             List<String> memories) {
+        return getGPTResponse(userInput, history, memories, "untracked");
+    }
+
+    public Mono<String> getGPTResponse(
+            String userInput,
+            List<ChatMessage.HistoryMessage> history,
+            List<String> memories,
+            String requestId) {
         if (apiKey == null || apiKey.isBlank()) {
+            log.error("event=gemini_request_rejected requestId={} reason=missing_api_key", requestId);
             return Mono.error(new IllegalStateException(
                     "The server is not configured. Set the GEMINI_API_KEY environment variable."));
         }
@@ -63,6 +76,11 @@ public class ChatGPTService {
         }
         contents.add(Map.of("role", "user", "parts", List.of(Map.of("text", prompt))));
         Map<String, Object> requestBody = Map.of("contents", contents);
+        int promptChars = prompt.length();
+        int providerContentCount = contents.size();
+        log.info("event=gemini_request_started requestId={} model={} historyCount={} memoryCount={} providerContentCount={} currentPromptChars={}",
+                requestId, model, history.size(), memories.size(), providerContentCount, promptChars);
+        long startedAt = System.nanoTime();
 
         return webClient.post()
                 .uri("/v1beta/models/{model}:generateContent", model)
@@ -70,7 +88,21 @@ public class ChatGPTService {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(JsonNode.class)
-                .map(this::extractText);
+                .map(this::extractText)
+                .doOnSuccess(answer -> log.info("event=gemini_request_completed requestId={} model={} durationMs={} responseChars={}",
+                        requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
+                        answer == null ? 0 : answer.length()))
+                .doOnError(error -> {
+                    if (error instanceof WebClientResponseException responseError) {
+                        log.error("event=gemini_request_failed requestId={} model={} durationMs={} providerStatus={} errorType={}",
+                                requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
+                                responseError.getStatusCode().value(), error.getClass().getSimpleName());
+                    } else {
+                        log.error("event=gemini_request_failed requestId={} model={} durationMs={} errorType={}",
+                                requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
+                                error.getClass().getSimpleName());
+                    }
+                });
     }
 
     private String extractText(JsonNode response) {

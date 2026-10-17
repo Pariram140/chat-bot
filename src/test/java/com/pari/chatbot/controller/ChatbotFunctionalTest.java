@@ -1,5 +1,6 @@
 package com.pari.chatbot.controller;
 
+import com.pari.chatbot.model.ChatMessage;
 import com.pari.chatbot.service.ChatGPTService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,7 +53,12 @@ class ChatbotFunctionalTest {
 
     @Test
     void validChatRequestReturnsAssistantResponse() throws Exception {
-        when(chatGPTService.getGPTResponse(org.mockito.ArgumentMatchers.eq("Hello"), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList())).thenReturn(Mono.just("Hello from the assistant"));
+        when(chatGPTService.getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Hello"),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Mono.just("Hello from the assistant"));
 
         MvcResult result = mockMvc.perform(post("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -58,9 +67,14 @@ class ChatbotFunctionalTest {
 
         mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.response").value("Hello from the assistant"));
+                .andExpect(jsonPath("$.response").value("Hello from the assistant"))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
 
-        verify(chatGPTService).getGPTResponse(org.mockito.ArgumentMatchers.eq("Hello"), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList());
+        verify(chatGPTService).getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Hello"),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -72,9 +86,14 @@ class ChatbotFunctionalTest {
 
         mockMvc.perform(asyncDispatch(result))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("Message content must not be empty."));
+                .andExpect(jsonPath("$.error").value("Message content must not be empty."))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
 
-        verify(chatGPTService, never()).getGPTResponse(org.mockito.ArgumentMatchers.anyString());
+        verify(chatGPTService, never()).getGPTResponse(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -94,12 +113,20 @@ class ChatbotFunctionalTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Message must be 4000 characters or fewer."));
 
-        verify(chatGPTService, never()).getGPTResponse(org.mockito.ArgumentMatchers.anyString());
+        verify(chatGPTService, never()).getGPTResponse(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
     void upstreamAiFailureReturnsSafeBadGatewayResponse() throws Exception {
-        when(chatGPTService.getGPTResponse(org.mockito.ArgumentMatchers.eq("Hello"), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
+        when(chatGPTService.getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Hello"),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(Mono.error(new IllegalStateException("sensitive upstream detail")));
 
         MvcResult result = mockMvc.perform(post("/chat")
@@ -111,6 +138,7 @@ class ChatbotFunctionalTest {
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.error").value(
                         "The AI service could not complete the request. Check the server key and Gemini quota."))
+                .andExpect(jsonPath("$.requestId").isNotEmpty())
                 .andExpect(content().string(org.hamcrest.Matchers.not(
                         org.hamcrest.Matchers.containsString("sensitive upstream detail"))));
     }
@@ -137,7 +165,8 @@ class ChatbotFunctionalTest {
         verify(chatGPTService, never()).getGPTResponse(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyList(),
-                org.mockito.ArgumentMatchers.anyList());
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -154,7 +183,53 @@ class ChatbotFunctionalTest {
         verify(chatGPTService, never()).getGPTResponse(
                 org.mockito.ArgumentMatchers.anyString(),
                 org.mockito.ArgumentMatchers.anyList(),
-                org.mockito.ArgumentMatchers.anyList());
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString());
     }
 
+    @Test
+    void forwardsConversationHistoryAndMemoriesToAiService() throws Exception {
+        when(chatGPTService.getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Pick one"),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(Mono.just("Option two is the best fit."));
+
+        String body = """
+                {
+                  "content": "Pick one",
+                  "history": [
+                    {"role": "user", "content": "Brainstorm a project"},
+                    {"role": "assistant", "content": "Option one; Option two; Option three"}
+                  ],
+                  "memories": ["Use Java 17"]
+                }
+                """;
+
+        MvcResult result = mockMvc.perform(post("/chat")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andReturn();
+
+        mockMvc.perform(asyncDispatch(result))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.response").value("Option two is the best fit."))
+                .andExpect(jsonPath("$.requestId").isNotEmpty());
+
+        org.mockito.ArgumentCaptor<List<ChatMessage.HistoryMessage>> historyCaptor =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.ArgumentCaptor<List<String>> memoriesCaptor =
+                org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(chatGPTService).getGPTResponse(
+                org.mockito.ArgumentMatchers.eq("Pick one"),
+                historyCaptor.capture(),
+                memoriesCaptor.capture(),
+                org.mockito.ArgumentMatchers.anyString());
+
+        assertEquals(2, historyCaptor.getValue().size());
+        assertEquals("Brainstorm a project", historyCaptor.getValue().get(0).getContent());
+        assertEquals("Option one; Option two; Option three", historyCaptor.getValue().get(1).getContent());
+        assertEquals(List.of("Use Java 17"), memoriesCaptor.getValue());
+    }
 }
