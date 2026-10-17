@@ -102,7 +102,7 @@ test("saved memory is included in a new chat request", async ({ page }) => {
       body: JSON.stringify({ response: "I will use that project context." })
     });
   });
-  await page.getByRole("button", { name: /New chat/ }).click();
+  await page.locator("#clear-chat").click();
   await page.getByLabel("Your message").fill("What Java version does my project use?");
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(page.getByText("I will use that project context.")).toBeVisible();
