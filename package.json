@@ -2,6 +2,7 @@
   "name": "pari-chatbot-ui-tests",
   "private": true,
   "scripts": {
+    "check:js": "node --check src/main/resources/static/app.js && node --check playwright.config.js && node --check tests/e2e/chatbot.spec.js",
     "test:e2e": "playwright test"
   },
   "devDependencies": {
