@@ -1,71 +1,57 @@
 # Chatbot Spring Boot Application
 
-This is a Spring Boot application that interacts with the OpenAI API to create a chatbot. The chatbot accepts user input and responds with generated text using OpenAI's provided model.
+A Spring Boot chatbot with a static web UI and the Gemini Developer API.
 
 ## Prerequisites
 
-- Java 11 or higher
-- Maven
-- OpenAI API key
+- Java 17
+- Maven (or the included Maven wrapper, if present)
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/apikey)
 
-## Getting Started
+## Configure and run
 
-### 1. Clone the Repository
+Set the API key as an environment variable. Do not commit API keys to source control.
 
+macOS/Linux:
 ```sh
-git clone https://github.com/yourusername/chat-bot.git
-cd chatbot
-```
-### 2. Add Your OpenAI API Key
-Open the src/main/resources/application.properties file and add your OpenAI API key:
-
-```
-openai.api.key=your_openai_api_key_here
-```
-### 3. Build and Run the Application
-You can run the application using Maven or Gradle.
-
-Using Maven
-```sh
+export GEMINI_API_KEY="your_gemini_api_key"
 ./mvnw spring-boot:run
 ```
-### 4. Test the API
-You can test the chatbot endpoint using Postman or cURL.
 
-Using cURL
-```sh
-curl --location 'http://localhost:8080/chat' \
---header 'Content-Type: application/json' \
---data-raw '{
-    "content": "Hello!"
-}'
+Windows PowerShell:
+```powershell
+$env:GEMINI_API_KEY = "your_gemini_api_key"
+.mvnw.cmd spring-boot:run
 ```
-### API Endpoints
-#### POST /chat
-This endpoint accepts a JSON payload with the user's message and returns the chatbot's response.
 
-Request Body:
+The default model is `gemini-2.5-flash-lite`. To override it, set `GEMINI_MODEL` to a model available to your Gemini API project.
 
+Open [http://localhost:8080](http://localhost:8080) to use the chat interface.
+
+## API
+
+### `POST /chat`
+
+Request:
 ```json
 {
   "content": "Hello!"
 }
 ```
-Response Body:
 
+Success response:
 ```json
 {
   "response": "Hello! How can I help you today?"
 }
 ```
 
+Invalid or empty input returns HTTP 400. Missing configuration or upstream AI errors return HTTP 502 with an `error` field.
 
-### Error Handling
-The application handles errors gracefully and provides informative error messages. For instance, it will notify you if the API key is missing or invalid, or if there are issues connecting to the OpenAI API.
+## Free-tier notes
 
+Gemini API free-tier access and quotas vary by model, project, and account. Check the current quotas in Google AI Studio. The free tier is rate-limited and Google may use submitted content to improve its products under the free-tier terms; avoid sending secrets or sensitive personal information.
 
-## Acknowledgments
+## Deployment
 
-- [Spring Boot](https://spring.io/projects/spring-boot)
-- [OpenAI](https://www.openai.com/)
-- [WebClient](https://docs.spring.io/spring/docs/current/javadoc-api/org/springframework/web/reactive/function/client/WebClient.html)
+Configure `GEMINI_API_KEY` as a secret environment variable in your hosting provider. Never place the key in frontend JavaScript or commit it to the repository.
