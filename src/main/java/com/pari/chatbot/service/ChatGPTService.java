@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientRequestException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Mono;
 
@@ -50,7 +51,7 @@ public class ChatGPTService {
             List<String> memories,
             String requestId) {
         if (apiKey == null || apiKey.isBlank()) {
-            log.error("event=gemini_request_rejected requestId={} reason=missing_api_key", requestId);
+            log.error("event=gemini_request_rejected requestId={} errorCategory=configuration_missing_api_key", requestId);
             return Mono.error(new IllegalStateException(
                     "The server is not configured. Set the GEMINI_API_KEY environment variable."));
         }
@@ -76,10 +77,8 @@ public class ChatGPTService {
         }
         contents.add(Map.of("role", "user", "parts", List.of(Map.of("text", prompt))));
         Map<String, Object> requestBody = Map.of("contents", contents);
-        int promptChars = prompt.length();
-        int providerContentCount = contents.size();
         log.info("event=gemini_request_started requestId={} model={} historyCount={} memoryCount={} providerContentCount={} currentPromptChars={}",
-                requestId, model, history.size(), memories.size(), providerContentCount, promptChars);
+                requestId, model, history.size(), memories.size(), contents.size(), prompt.length());
         long startedAt = System.nanoTime();
 
         return webClient.post()
@@ -92,17 +91,32 @@ public class ChatGPTService {
                 .doOnSuccess(answer -> log.info("event=gemini_request_completed requestId={} model={} durationMs={} responseChars={}",
                         requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
                         answer == null ? 0 : answer.length()))
-                .doOnError(error -> {
-                    if (error instanceof WebClientResponseException responseError) {
-                        log.error("event=gemini_request_failed requestId={} model={} durationMs={} providerStatus={} errorType={}",
-                                requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
-                                responseError.getStatusCode().value(), error.getClass().getSimpleName());
-                    } else {
-                        log.error("event=gemini_request_failed requestId={} model={} durationMs={} errorType={}",
-                                requestId, model, (System.nanoTime() - startedAt) / 1_000_000,
-                                error.getClass().getSimpleName());
-                    }
-                });
+                .doOnError(error -> logProviderFailure(requestId, startedAt, error));
+    }
+
+    private void logProviderFailure(String requestId, long startedAt, Throwable error) {
+        long durationMs = (System.nanoTime() - startedAt) / 1_000_000;
+        if (error instanceof WebClientResponseException responseError) {
+            int status = responseError.getStatusCode().value();
+            log.error("event=gemini_request_failed requestId={} model={} durationMs={} providerStatus={} errorCategory={} errorType={}",
+                    requestId, model, durationMs, status, classifyStatus(status), error.getClass().getSimpleName());
+            return;
+        }
+
+        String category = error instanceof WebClientRequestException
+                ? "provider_connection_error"
+                : "provider_response_processing_error";
+        log.error("event=gemini_request_failed requestId={} model={} durationMs={} errorCategory={} errorType={}",
+                requestId, model, durationMs, category, error.getClass().getSimpleName());
+    }
+
+    static String classifyStatus(int status) {
+        if (status == 429) return "provider_rate_limited";
+        if (status == 408 || status == 504) return "provider_timeout";
+        if (status >= 500) return "provider_server_error";
+        if (status == 401 || status == 403) return "provider_auth_or_permission_error";
+        if (status >= 400) return "provider_request_rejected";
+        return "provider_unexpected_status";
     }
 
     private String extractText(JsonNode response) {
@@ -111,20 +125,17 @@ public class ChatGPTService {
             StringBuilder answer = new StringBuilder();
             for (JsonNode part : parts) {
                 if (part.hasNonNull("text")) {
-                    if (!answer.isEmpty()) {
-                        answer.append("\n");
-                    }
+                    if (!answer.isEmpty()) answer.append("\n");
                     answer.append(part.get("text").asText());
                 }
             }
-            if (!answer.isEmpty()) {
-                return answer.toString();
-            }
+            if (!answer.isEmpty()) return answer.toString();
         }
 
         String providerMessage = response.path("error").path("message").asText("");
         if (!providerMessage.isBlank()) {
-            throw new IllegalStateException("Gemini API error: " + providerMessage);
+            // Do not propagate provider response details into application logs or client responses.
+            throw new IllegalStateException("Gemini returned an error response.");
         }
         throw new IllegalStateException("Gemini returned no text. Try a different prompt.");
     }
