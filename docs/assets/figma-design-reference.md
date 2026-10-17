@@ -2,8 +2,12 @@
 
 The authoritative, editable design is the [Chatbot — UI Design Figma file](https://www.figma.com/design/pfIAnz6ffMbZtdpjxyBtPY). It contains the desktop welcome screen, mobile welcome screen, and design notes.
 
-## Capture a fresh screenshot
+## Committed preview
 
-Figma-generated screenshot URLs are temporary, so they should not be committed as permanent image assets. Open the Figma file and export the `Chatbot UI — Desktop + Mobile` frame as a PNG, then save the exported image as `docs/assets/figma-design.png` in this repository. The README links here so this capture location and process remain documented.
+![Figma chatbot UI design preview](figma-design.png)
 
-When updating the committed screenshot, use Figma's export so the image is a faithful capture of the editable design, rather than a recreated mockup.
+The screenshot is a static preview; use the Figma file for editable layers and the full design.
+
+## Refresh the screenshot
+
+When the design changes, capture the `Chatbot UI — Desktop + Mobile` frame in Figma and replace `docs/assets/figma-design.png` with the updated PNG.
