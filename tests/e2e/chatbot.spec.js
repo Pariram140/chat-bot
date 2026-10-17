@@ -21,7 +21,7 @@ test("sends a message and renders the assistant response", async ({ page }) => {
   await page.route("**/chat", async route => {
     const request = route.request();
     expect(request.method()).toBe("POST");
-    expect(request.postDataJSON()).toEqual({ content: "CHAT TEST OK" });
+    expect(request.postDataJSON()).toEqual({ content: "CHAT TEST OK", history: [], memories: [] });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -40,7 +40,7 @@ test("shows an error and re-enables input when the API fails", async ({ page }) 
   await page.route("**/chat", route => route.fulfill({
     status: 502,
     contentType: "application/json",
-    body: JSON.stringify({ message: "The assistant is temporarily unavailable." })
+    body: JSON.stringify({ error: "The assistant is temporarily unavailable." })
   }));
 
   await page.getByLabel("Your message").fill("trigger failure");
@@ -50,7 +50,7 @@ test("shows an error and re-enables input when the API fails", async ({ page }) 
   await expect(page.getByRole("button", { name: "Send message" })).toBeEnabled();
 });
 
-test("New chat clears the conversation", async ({ page }) => {
+test("New chat starts a fresh view and previous conversation can be reopened", async ({ page }) => {
   await page.route("**/chat", route => route.fulfill({
     status: 200,
     contentType: "application/json",
@@ -63,6 +63,8 @@ test("New chat clears the conversation", async ({ page }) => {
   await page.getByRole("button", { name: /New chat/ }).click();
   await expect(page.getByText("Test reply")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Start with a question" })).toBeVisible();
+  await page.getByRole("button", { name: "Hello", exact: true }).click();
+  await expect(page.getByText("Test reply")).toBeVisible();
 });
 
 test("composer is usable on a mobile viewport", async ({ page }) => {
