@@ -49,7 +49,7 @@ class ChatbotFunctionalTest {
 
     @Test
     void validChatRequestReturnsAssistantResponse() throws Exception {
-        when(chatGPTService.getGPTResponse("Hello")).thenReturn(Mono.just("Hello from the assistant"));
+        when(chatGPTService.getGPTResponse(org.mockito.ArgumentMatchers.eq("Hello"), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList())).thenReturn(Mono.just("Hello from the assistant"));
 
         MvcResult result = mockMvc.perform(post("/chat")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -60,7 +60,7 @@ class ChatbotFunctionalTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.response").value("Hello from the assistant"));
 
-        verify(chatGPTService).getGPTResponse("Hello");
+        verify(chatGPTService).getGPTResponse(org.mockito.ArgumentMatchers.eq("Hello"), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList());
     }
 
     @Test
@@ -99,7 +99,7 @@ class ChatbotFunctionalTest {
 
     @Test
     void upstreamAiFailureReturnsSafeBadGatewayResponse() throws Exception {
-        when(chatGPTService.getGPTResponse("Hello"))
+        when(chatGPTService.getGPTResponse(org.mockito.ArgumentMatchers.eq("Hello"), org.mockito.ArgumentMatchers.anyList(), org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(Mono.error(new IllegalStateException("sensitive upstream detail")));
 
         MvcResult result = mockMvc.perform(post("/chat")
