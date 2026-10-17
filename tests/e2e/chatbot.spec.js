@@ -61,7 +61,7 @@ test("New chat starts a fresh view and previous conversation can be reopened", a
   await page.getByLabel("Your message").fill("Hello");
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(page.getByText("Test reply")).toBeVisible();
-  await page.getByRole("button", { name: /New chat/ }).click();
+  await page.locator("#clear-chat").click();
   await expect(page.getByText("Test reply")).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Start with a question" })).toBeVisible();
   await page.getByRole("button", { name: "Hello", exact: true }).click();
@@ -84,7 +84,7 @@ test("conversation history survives a browser reload", async ({ page }) => {
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(page.getByText("Saved assistant answer")).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Remember this conversation")).toBeVisible();
+  await expect(page.locator("#messages").getByText("Remember this conversation", { exact: true })).toBeVisible();
   await expect(page.getByText("Saved assistant answer")).toBeVisible();
 });
 
