@@ -3,6 +3,7 @@ services:
     name: pari-chatbot
     runtime: docker
     plan: free
+    autoDeployTrigger: checksPass
     healthCheckPath: /
     envVars:
       - key: GEMINI_API_KEY
