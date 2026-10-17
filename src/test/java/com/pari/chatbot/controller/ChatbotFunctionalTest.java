@@ -43,7 +43,7 @@ class ChatbotFunctionalTest {
         mockMvc.perform(get("/app.js"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.valueOf("text/javascript")))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString('fetch("/chat"'))));
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("fetch(\"/chat\""))));
     }
 
     @Test
