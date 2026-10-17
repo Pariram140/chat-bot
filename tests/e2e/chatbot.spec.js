@@ -31,8 +31,8 @@ test("sends a message and renders the assistant response", async ({ page }) => {
 
   await page.getByLabel("Your message").fill("CHAT TEST OK");
   await page.getByRole("button", { name: "Send message" }).click();
-  await expect(page.getByText("CHAT TEST OK").last()).toBeVisible();
-  await expect(page.getByText("Assistant", { exact: true })).toBeVisible();
+  await expect(page.locator("#messages").getByText("CHAT TEST OK").last()).toBeVisible();
+  await expect(page.locator("#messages").getByText("Assistant", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Your message")).toBeEnabled();
 });
 
