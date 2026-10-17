@@ -35,19 +35,19 @@ public class ChatbotController {
         String requestId = UUID.randomUUID().toString();
         String content = message == null ? null : message.getContent();
         if (content == null || content.isBlank()) {
-            log.warn("event=chat_rejected requestId={} reason=empty_content", requestId);
+            log.warn("event=chat_rejected requestId={} errorCategory=invalid_empty_content", requestId);
             return Mono.just(ResponseEntity.badRequest()
                     .body(Map.of("error", "Message content must not be empty.", "requestId", requestId)));
         }
         if (content.length() > MAX_CONTENT_LENGTH) {
-            log.warn("event=chat_rejected requestId={} reason=content_too_long contentChars={}", requestId, content.length());
+            log.warn("event=chat_rejected requestId={} errorCategory=content_too_long contentChars={}", requestId, content.length());
             return Mono.just(ResponseEntity.badRequest()
                     .body(Map.of("error", "Message must be 4000 characters or fewer.", "requestId", requestId)));
         }
 
         List<ChatMessage.HistoryMessage> history = message.getHistory();
         if (history.size() > MAX_HISTORY_MESSAGES) {
-            log.warn("event=chat_rejected requestId={} reason=history_too_large historyCount={}", requestId, history.size());
+            log.warn("event=chat_rejected requestId={} errorCategory=history_too_large historyCount={}", requestId, history.size());
             return Mono.just(ResponseEntity.badRequest()
                     .body(Map.of("error", "History must contain 12 messages or fewer.", "requestId", requestId)));
         }
@@ -56,7 +56,7 @@ public class ChatbotController {
                     || !(item.getRole().equals("user") || item.getRole().equals("assistant"))
                     || item.getContent() == null || item.getContent().isBlank()
                     || item.getContent().length() > MAX_CONTENT_LENGTH) {
-                log.warn("event=chat_rejected requestId={} reason=invalid_history", requestId);
+                log.warn("event=chat_rejected requestId={} errorCategory=invalid_history", requestId);
                 return Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", "History contains an invalid message.", "requestId", requestId)));
             }
@@ -64,13 +64,13 @@ public class ChatbotController {
 
         List<String> memories = message.getMemories();
         if (memories.size() > MAX_MEMORIES) {
-            log.warn("event=chat_rejected requestId={} reason=too_many_memories memoryCount={}", requestId, memories.size());
+            log.warn("event=chat_rejected requestId={} errorCategory=too_many_memories memoryCount={}", requestId, memories.size());
             return Mono.just(ResponseEntity.badRequest()
                     .body(Map.of("error", "Memory context must contain 8 items or fewer.", "requestId", requestId)));
         }
         for (String memory : memories) {
             if (memory == null || memory.isBlank() || memory.length() > MAX_MEMORY_LENGTH) {
-                log.warn("event=chat_rejected requestId={} reason=invalid_memory", requestId);
+                log.warn("event=chat_rejected requestId={} errorCategory=invalid_memory", requestId);
                 return Mono.just(ResponseEntity.badRequest()
                         .body(Map.of("error", "Memory context contains an invalid item.", "requestId", requestId)));
             }
@@ -91,9 +91,8 @@ public class ChatbotController {
                     return ResponseEntity.ok(Map.of("response", answer, "requestId", requestId));
                 })
                 .onErrorResume(error -> {
-                    log.error("event=chat_failed requestId={} durationMs={} errorType={} errorMessage={}",
-                            requestId, (System.nanoTime() - startedAt) / 1_000_000,
-                            error.getClass().getSimpleName(), safeErrorMessage(error));
+                    log.error("event=chat_failed requestId={} durationMs={} errorCategory=ai_service_failure errorType={}",
+                            requestId, (System.nanoTime() - startedAt) / 1_000_000, error.getClass().getSimpleName());
                     String messageText = error instanceof IllegalStateException
                             && error.getMessage() != null
                             && error.getMessage().contains("GEMINI_API_KEY")
@@ -102,12 +101,5 @@ public class ChatbotController {
                     return Mono.just(ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                             .body(Map.of("error", messageText, "requestId", requestId)));
                 });
-    }
-
-    private String safeErrorMessage(Throwable error) {
-        String message = error.getMessage();
-        if (message == null || message.isBlank()) return "no_message";
-        // Avoid writing potentially sensitive provider response bodies to logs.
-        return message.replaceAll("[\\r\\n\\t]", " ").substring(0, Math.min(message.length(), 240));
     }
 }

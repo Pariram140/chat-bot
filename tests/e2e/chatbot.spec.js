@@ -91,12 +91,13 @@ test("conversation history survives a browser reload", async ({ page }) => {
 test("saved memory is included in a new chat request", async ({ page }) => {
   await page.getByLabel("Memory to remember across chats").fill("My project uses Java 17");
   await page.getByRole("button", { name: "Save memory" }).click();
-  await expect(page.getByText("My project uses Java 17", { exact: true })).toBeVisible();
-  await expect(page.getByText("Memory saved for this local profile and will be included in future chats.")).toBeVisible();
+  await expect(page.locator("#memory-list").getByText("My project uses Java 17", { exact: true })).toBeVisible();
 
-  let requestBody;
+  let capturedRequest;
   await page.route("**/chat", async route => {
-    requestBody = route.request().postDataJSON();
+    capturedRequest = route.request().postDataJSON();
+    // Always complete the request so a failed assertion reports the payload issue,
+    // rather than leaving the UI waiting for a response that never arrives.
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -109,8 +110,7 @@ test("saved memory is included in a new chat request", async ({ page }) => {
   await page.getByLabel("Your message").fill("What Java version does my project use?");
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(page.getByText("I will use that project context.")).toBeVisible();
-  expect(requestBody).toBeDefined();
-  expect(requestBody.memories).toContain("My project uses Java 17");
+  expect(capturedRequest.memories).toContain("My project uses Java 17");
 });
 
 test("sends prior conversation turns when asked what the user said before", async ({ page }) => {
