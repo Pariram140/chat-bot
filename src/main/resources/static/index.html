@@ -5,18 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Chatbot</title>
   <link rel="stylesheet" href="/styles.css">
-  <script src="/app.js" defer></script>
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
   <main class="app-shell">
     <aside class="sidebar" aria-label="Chat information">
       <div class="brand"><div class="brand-mark" aria-hidden="true">✦</div><div><p class="brand-name">Chatbot</p><p class="brand-caption">AI assistant</p></div></div>
       <button class="new-chat-button" id="clear-chat" type="button"><span aria-hidden="true">＋</span> New chat</button>
-      <div class="sidebar-note"><p class="sidebar-note-title">A simple place to start</p><p>Ask a question, explore an idea, or get help understanding a topic.</p></div>
-      <div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span><span>Prototype</span></div>
+      <section class="sidebar-section" aria-label="Local profile">
+        <label for="profile-select">Local profile</label>
+        <div class="profile-controls">
+          <select id="profile-select" aria-label="Active local profile"></select>
+          <button id="add-profile" class="icon-button" type="button" aria-label="Add local profile" title="Add local profile">＋</button>
+        </div>
+        <p class="local-warning">Prototype only: profiles are not secure accounts and stay in this browser.</p>
+      </section>
+      <section class="sidebar-section conversation-section" aria-label="Conversation history">
+        <h2>Recent chats</h2>
+        <div id="conversation-list" class="conversation-list"></div>
+      </section>
+      <section class="sidebar-section memory-section" aria-label="Saved memories">
+        <h2>Saved memory</h2>
+        <form id="memory-form" class="memory-form">
+          <label class="visually-hidden" for="memory-input">Memory to remember across chats</label>
+          <textarea id="memory-input" rows="2" maxlength="500" placeholder="A project detail or preference…" required></textarea>
+          <button type="submit" class="small-action">Save memory</button>
+        </form>
+        <div id="memory-list" class="memory-list"></div>
+      </section>
+      <div class="sidebar-footer"><span class="status-dot" aria-hidden="true"></span><span>Prototype · local memory</span></div>
     </aside>
     <section class="chat-panel" aria-label="Chat">
-      <header class="topbar"><div><p class="eyebrow">YOUR AI ASSISTANT</p><h1>What can I help with?</h1></div><div class="model-pill"><span class="status-dot" aria-hidden="true"></span> Assistant</div></header>
+      <header class="topbar"><div><p class="eyebrow">YOUR AI ASSISTANT</p><h1 id="chat-heading">What can I help with?</h1></div><div class="model-pill"><span class="status-dot" aria-hidden="true"></span> Assistant</div></header>
       <div class="messages" id="messages" role="log" aria-live="polite" aria-relevant="additions text">
         <div class="welcome" id="welcome"><div class="welcome-icon" aria-hidden="true">✦</div><h2>Start with a question</h2><p>Get explanations, brainstorm ideas, or work through a problem step by step.</p><div class="suggestions">
           <button class="suggestion" type="button" data-prompt="Explain how Java HashMap works">Explain a technical concept</button>
