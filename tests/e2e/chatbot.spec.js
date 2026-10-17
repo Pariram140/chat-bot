@@ -107,3 +107,94 @@ test("saved memory is included in a new chat request", async ({ page }) => {
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(page.getByText("I will use that project context.")).toBeVisible();
 });
+
+test("sends prior conversation turns when asked what the user said before", async ({ page }) => {
+  let requestNumber = 0;
+  await page.route("**/chat", async route => {
+    const body = route.request().postDataJSON();
+    requestNumber += 1;
+
+    if (requestNumber === 1) {
+      expect(body.content).toBe("Test");
+      expect(body.history).toEqual([]);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ response: "Hello! Everything is working properly." })
+      });
+      return;
+    }
+
+    expect(body.content).toBe("What did I ask you before?");
+    expect(body.history).toEqual([
+      { role: "user", content: "Test" },
+      { role: "assistant", content: "Hello! Everything is working properly." }
+    ]);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ response: "You previously said: Test." })
+    });
+  });
+
+  const input = page.getByLabel("Your message");
+  await input.fill("Test");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("Hello! Everything is working properly.")).toBeVisible();
+
+  await input.fill("What did I ask you before?");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("You previously said: Test.")).toBeVisible();
+  expect(requestNumber).toBe(2);
+});
+
+test("a failed turn does not erase earlier context on the next request", async ({ page }) => {
+  let requestNumber = 0;
+  await page.route("**/chat", async route => {
+    const body = route.request().postDataJSON();
+    requestNumber += 1;
+
+    if (requestNumber === 1) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ response: "I will remember this turn." })
+      });
+      return;
+    }
+
+    if (requestNumber === 2) {
+      expect(body.history).toContainEqual({ role: "user", content: "Keep this context" });
+      await route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "The AI service could not complete the request." })
+      });
+      return;
+    }
+
+    expect(body.content).toBe("Try again");
+    expect(body.history).toContainEqual({ role: "user", content: "Keep this context" });
+    expect(body.history).toContainEqual({ role: "assistant", content: "I will remember this turn." });
+    expect(body.history).not.toContainEqual({ role: "user", content: "failed request" });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ response: "Earlier context is still available." })
+    });
+  });
+
+  const input = page.getByLabel("Your message");
+  await input.fill("Keep this context");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("I will remember this turn.")).toBeVisible();
+
+  await input.fill("failed request");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("The AI service could not complete the request.")).toBeVisible();
+
+  await input.fill("Try again");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText("Earlier context is still available.")).toBeVisible();
+  expect(requestNumber).toBe(3);
+});
