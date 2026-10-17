@@ -59,3 +59,29 @@ Gemini API free-tier access and quotas vary by model, project, and account. Chec
 ## Deployment
 
 Configure `GEMINI_API_KEY` as a secret environment variable in your hosting provider. Never place the key in frontend JavaScript or commit it to the repository.
+
+## Deploy for free on Render
+
+This repository includes a `Dockerfile` and `render.yaml` for a Render web service. The free instance is suitable for a hobby/demo deployment, not production.
+
+1. Push or merge the deployment files to `main`.
+2. Sign in to [Render](https://dashboard.render.com/) and choose **New → Blueprint**.
+3. Connect this GitHub repository and select the `main` branch. Render reads `render.yaml`.
+4. When prompted, enter your Gemini API key as the secret value for `GEMINI_API_KEY`. Do not put the key in Git or frontend code.
+5. Create the service and follow the deploy logs. Once healthy, open the `onrender.com` URL.
+6. Test the UI with a simple prompt. For a direct API check, send a POST request to `/chat` with JSON `{"content":"Reply with the word OK"}`.
+
+Example API check:
+```sh
+curl -i -X POST "https://YOUR-SERVICE.onrender.com/chat" \
+  -H "Content-Type: application/json" \
+  -d '{"content":"Reply with the word OK"}'
+```
+
+The expected success response is HTTP 200 with a JSON `response` field. HTTP 502 generally indicates missing/invalid API-key configuration, Gemini quota exhaustion, or an upstream API error; inspect the Render service logs for details.
+
+### Free-plan caveats
+
+- Free web services sleep after 15 minutes without inbound traffic; the first request after sleeping can take about a minute to wake up.
+- Free instances have limited CPU/RAM and monthly included usage. Keep an eye on the Render dashboard and Gemini API quotas.
+- The GitHub Actions workflow checks compilation and automated tests; it does not call Gemini. A live chat test requires a configured API key and consumes Gemini quota.
